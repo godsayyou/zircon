@@ -148,7 +148,7 @@ zx_status_t vim_uart_init(vim_bus_t* bus) {
     gpio_write(&bus->gpio, WIFI_PWREN, 1);
     zx_nanosleep(zx_deadline_after(ZX_MSEC(200)));
 
-    serial_driver_config(&bus->serial, 1, 115200, SERIAL_DATA_BITS_8 | SERIAL_STOP_BITS_1 |
+    serial_driver_config(&bus->serial, 1,115200, SERIAL_DATA_BITS_8 | SERIAL_STOP_BITS_1 |
                                                   SERIAL_PARITY_NONE | SERIAL_FLOW_CTRL_CTS_RTS);
     status = pbus_device_add(&bus->pbus, &bt_uart_dev, 0);
     if (status != ZX_OK) {

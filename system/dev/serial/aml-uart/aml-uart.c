@@ -99,7 +99,8 @@ printf("initial control is %08x\n", temp);
 // FIXME use defines
     temp = readl(irq_ctrl_reg);
     temp &= 0xffff0000;
-    temp |= (1 << 8) | ( 1 );
+//??    temp |= (1 << 8) | ( 1 );
+temp |= 1;
     writel(temp, irq_ctrl_reg);
 
 printf("REGS for port %u\n", port->port_num);
@@ -148,10 +149,10 @@ printf("aml_serial_config port %u: %08x\n", port_num, flags);
     volatile uint32_t* reg5 = mmio + AML_UART_REG5;
 
     uint32_t ctrl_bits = 0;
-//    const uint32_t config_mask = AML_UART_CONTROL_XMITLEN_MASK |
-//                                 AML_UART_CONTROL_STOPLEN_MASK |
-//                                 AML_UART_CONTROL_PAR_MASK |
-//                                 AML_UART_CONTROL_TWOWIRE;
+    const uint32_t config_mask = AML_UART_CONTROL_XMITLEN_MASK |
+                                 AML_UART_CONTROL_STOPLEN_MASK |
+                                 AML_UART_CONTROL_PAR_MASK |
+                                 AML_UART_CONTROL_TWOWIRE;
 
     switch (flags & SERIAL_DATA_BITS_MASK) {
     case SERIAL_DATA_BITS_5:
@@ -199,7 +200,8 @@ printf("aml_serial_config port %u: %08x\n", port_num, flags);
     case SERIAL_FLOW_CTRL_NONE:
         ctrl_bits |= AML_UART_CONTROL_TWOWIRE;
     case SERIAL_FLOW_CTRL_CTS_RTS:
-        ctrl_bits |= AML_UART_CONTROL_INVRTS;
+        // CTS/RTS is on by default
+//        ctrl_bits |= AML_UART_CONTROL_INVRTS;
         break;
     default:
         return ZX_ERR_INVALID_ARGS;
@@ -215,13 +217,16 @@ printf("aml_serial_config port %u: flags %08x ctrl %08x\n", port_num, flags, ctr
 
     mtx_lock(&port->lock);
 
-//    uint32_t temp = readl(ctrl_reg);
-//    temp &= ~config_mask;
-//    temp |= ctrl_bits;
-//    writel(temp, ctrl_reg);
-    writel(ctrl_bits, ctrl_reg);
+    uint32_t temp = readl(ctrl_reg);
+printf("initial ctrl reg: %08x\n", temp);
+    temp = 0x120;
+    temp &= ~config_mask;
+    temp |= ctrl_bits;
+    writel(temp, ctrl_reg);
+printf("now ctrl reg: %08x\n", temp);
+//    writel(ctrl_bits, ctrl_reg);
 
-    uint32_t temp = baud_bits | AML_UART_REG5_USE_XTAL_CLK | AML_UART_REG5_USE_NEW_BAUD_RATE;
+    temp = baud_bits | AML_UART_REG5_USE_XTAL_CLK | AML_UART_REG5_USE_NEW_BAUD_RATE;
     writel(temp, reg5);
 
     mtx_unlock(&port->lock);
@@ -313,7 +318,7 @@ printf("\n");
     aml_uart_port_t* port = &uart->ports[port_num];
     void* mmio = port->mmio.vaddr;
     volatile uint32_t* wfifo_reg = mmio + AML_UART_WFIFO;
-
+printf("aml_serial_write status %08x\n", readl(mmio + AML_UART_STATUS));
 
     const uint8_t* bufptr = buf;
     const uint8_t* end = bufptr + length;

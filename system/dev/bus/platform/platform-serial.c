@@ -123,7 +123,6 @@ static int platform_serial_thread(void* arg) {
 }
 
 static void platform_serial_state_cb(uint32_t port_num, uint32_t state, void* cookie) {
-printf("platform_serial_state_cb port %u: %u\n", port_num, state);
     serial_port_t* port = cookie;
 
     zx_signals_t set = 0;

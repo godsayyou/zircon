@@ -170,7 +170,6 @@ static void hci_handle_cmd_read_events(hci_t* hci, zx_wait_item_t* item) {
 
         buf[0] = HCI_COMMAND;
         length++;
-printf("HCI socket write %u\n", length);
         status = zx_socket_write(hci->uart_socket, 0, buf, length, NULL);
         if (status < 0) {
             zxlogf(ERROR, "hci_read_thread: zx_socket_write failed: %s\n", zx_status_get_string(status));
@@ -237,7 +236,7 @@ static void hci_handle_uart_read_events(hci_t* hci, zx_wait_item_t* item) {
         uint8_t packet_type = hci->cur_uart_packet_type;
 
         while (src < end) {
-            if (hci->cur_uart_packet_type == HCI_NONE) {
+            if (packet_type == HCI_NONE) {
                 // start of new packet. read packet type
                 packet_type = *src++;
                 if (packet_type != HCI_EVENT && packet_type != HCI_ACL_DATA) {
@@ -246,7 +245,6 @@ static void hci_handle_uart_read_events(hci_t* hci, zx_wait_item_t* item) {
                 }
             }
 
-printf("packet_type %u\n", packet_type);
             if (packet_type == HCI_EVENT) {
                 size_t packet_length = EVENT_PACKET_LENGTH(hci);
 
@@ -256,7 +254,6 @@ printf("packet_type %u\n", packet_type);
                     packet_length = EVENT_PACKET_LENGTH(hci);
                 }
                 if (!packet_length) {
-printf("packet_length is zero\n");
                     break;
                 }
 
@@ -270,6 +267,13 @@ printf("packet_length is zero\n");
                 if (hci->event_buffer_offset == packet_length) {
 // TODO - check if channel open?
                     // send accumulated event packet, minus the packet indicator
+printf("got event:");
+uint8_t* pp = &hci->event_buffer[1];
+size_t ll = packet_length - 1;
+for (unsigned i = 0; i < ll; i++) {
+printf(" %02x", pp[i]);
+}
+printf("\n");
                     zx_status_t status = zx_channel_write(hci->cmd_channel, 0,
                                                           &hci->event_buffer[1],
                                                           packet_length - 1, NULL, 0);
@@ -280,7 +284,8 @@ printf("packet_length is zero\n");
                     snoop_channel_write_locked(hci, BT_HCI_SNOOP_FLAG_RECEIVED,  &hci->event_buffer[1], packet_length - 1);
 
                     // reset buffer
-                    hci->cur_uart_packet_type = HCI_NONE;
+printf("reset buffer\n");
+                    packet_type = HCI_NONE;
                     hci->event_buffer_offset = 1;
                 }
             } else { // HCI_ACL_DATA
@@ -292,7 +297,6 @@ printf("packet_length is zero\n");
                     packet_length = ACL_PACKET_LENGTH(hci);
                 }
                 if (!packet_length) {
-printf("packet_length is zero\n");
                     break;
                 }
 
@@ -319,7 +323,7 @@ printf("packet_length is zero\n");
                         hci, BT_HCI_SNOOP_FLAG_DATA | BT_HCI_SNOOP_FLAG_RECEIVED, &hci->acl_buffer[1], packet_length - 1);
 
                     // reset buffer
-                    hci->cur_uart_packet_type = HCI_NONE;
+                    packet_type = HCI_NONE;
                     hci->acl_buffer_offset = 1;
                 }
             }
@@ -357,11 +361,8 @@ static int hci_read_thread(void* arg) {
     mtx_unlock(&hci->mutex);
 
     while (1) {
-printf("hci_read_thread top\n");
         zx_status_t status = zx_object_wait_many(hci->read_wait_items, hci->read_wait_item_count,
                                                  ZX_TIME_INFINITE);
-printf("hci_read_thread zx_object_wait_many returned\n");
-
         if (status < 0) {
             zxlogf(ERROR, "bt-transport-uart: zx_object_wait_many failed (%s) - exiting\n",
                    zx_status_get_string(status));
@@ -376,16 +377,12 @@ printf("hci_read_thread zx_object_wait_many returned\n");
             mtx_lock(&hci->mutex);
             zx_wait_item_t item = hci->read_wait_items[i];
             mtx_unlock(&hci->mutex);
-printf("item %u handle %x pending %x\n", i, item.handle, item.pending);
 
             if (item.handle == hci->cmd_channel) {
-printf("hci_handle_cmd_read_events\n");
                 hci_handle_cmd_read_events(hci, &item);
             } else if (item.handle == hci->acl_channel) {
-printf("hci_handle_acl_read_events\n");
                 hci_handle_acl_read_events(hci, &item);
             } else if (item.handle == hci->uart_socket) {
-printf("hci_handle_uart_read_events\n");
                 hci_handle_uart_read_events(hci, &item);
             }
         }

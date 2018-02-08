@@ -4,18 +4,20 @@
 
 #include <ddk/debug.h>
 #include <ddk/device.h>
+#include <ddk/io-buffer.h>
 #include <ddk/protocol/gpio.h>
 #include <ddk/protocol/platform-bus.h>
 #include <ddk/protocol/platform-defs.h>
 #include <soc/aml-s912/s912-gpio.h>
 #include <soc/aml-s912/s912-hw.h>
 
+#include <hw/reg.h>
+
 #include "vim.h"
 
-#define HEADER_UART 1
+#define HEADER_UART 0
 #define BLUETOOTH 1
 
-#define WIFI_PWREN S912_GPIOX(6)
 #define BT_EN S912_GPIOX(17)
 
 static const pbus_mmio_t uart_mmios[] = {
@@ -103,6 +105,17 @@ static const pbus_dev_t bt_uart_dev = {
 #endif
 
 zx_status_t vim_uart_init(vim_bus_t* bus) {
+
+    io_buffer_t clock;
+    io_buffer_init_physical(&clock, 0xc883c000, 4096, get_root_resource(), ZX_CACHE_POLICY_UNCACHED_DEVICE);
+    uint32_t temp = readl(io_buffer_virt(&clock) + 0x140);
+printf("clock reg was %08x\n", temp);
+    temp |= (1 << 13);
+printf("clock reg now %08x\n", temp);
+    writel(temp, io_buffer_virt(&clock) + 0x140);
+    
+    io_buffer_release(&clock);
+
     // configure UART_A and UART_AO_B
     gpio_set_alt_function(&bus->gpio, S912_UART_TX_A, S912_UART_TX_A_FN);
     gpio_set_alt_function(&bus->gpio, S912_UART_RX_A, S912_UART_RX_A_FN);
@@ -138,18 +151,20 @@ zx_status_t vim_uart_init(vim_bus_t* bus) {
 #endif
 
 #if BLUETOOTH
-    gpio_set_alt_function(&bus->gpio, BT_EN, 1);
-    gpio_set_alt_function(&bus->gpio, WIFI_PWREN, 1);
+    uint8_t enabled;
+    gpio_config(&bus->gpio, BT_EN, GPIO_DIR_OUT);
+/*
     gpio_write(&bus->gpio, BT_EN, 0);
-    gpio_write(&bus->gpio, WIFI_PWREN, 0);
 // FIXME don't block here
     zx_nanosleep(zx_deadline_after(ZX_MSEC(200)));
+*/
     gpio_write(&bus->gpio, BT_EN, 1);
-    gpio_write(&bus->gpio, WIFI_PWREN, 1);
-    zx_nanosleep(zx_deadline_after(ZX_MSEC(200)));
+//    zx_nanosleep(zx_deadline_after(ZX_MSEC(200)));
+    gpio_read(&bus->gpio, BT_EN, &enabled);
+printf("BT_EN now %u\n", enabled);
 
     serial_driver_config(&bus->serial, 1,115200, SERIAL_DATA_BITS_8 | SERIAL_STOP_BITS_1 |
-                                                  SERIAL_PARITY_NONE | SERIAL_FLOW_CTRL_CTS_RTS);
+                                                 SERIAL_PARITY_NONE | SERIAL_FLOW_CTRL_CTS_RTS);
     status = pbus_device_add(&bus->pbus, &bt_uart_dev, 0);
     if (status != ZX_OK) {
         zxlogf(ERROR, "vim_gpio_init: pbus_device_add failed: %d\n", status);

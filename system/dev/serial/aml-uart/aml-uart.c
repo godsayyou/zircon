@@ -79,11 +79,10 @@ static int aml_uart_irq_thread(void *arg) {
     aml_uart_port_t* port = arg;
     void* mmio = port->mmio.vaddr;
     volatile uint32_t* ctrl_reg = mmio + AML_UART_CONTROL;
-    volatile uint32_t* irq_ctrl_reg = mmio + AML_UART_IRQ_CONTROL;
+    volatile uint32_t* irq_ctrl_reg = mmio + AML_UART_MISC;
 
     // reset the port
     uint32_t temp = readl(ctrl_reg);
-printf("initial control is %08x\n", temp);
 
     temp |= AML_UART_CONTROL_RSTRX | AML_UART_CONTROL_RSTTX | AML_UART_CONTROL_CLRERR;
     writel(temp, ctrl_reg);
@@ -99,15 +98,17 @@ printf("initial control is %08x\n", temp);
 // FIXME use defines
     temp = readl(irq_ctrl_reg);
     temp &= 0xffff0000;
-//??    temp |= (1 << 8) | ( 1 );
-temp |= 1;
+// FIXME tx threshold should be half of fifo size?
+    temp |= (1 << 8) | ( 1 );
     writel(temp, irq_ctrl_reg);
 
+/*
 printf("REGS for port %u\n", port->port_num);
-printf("    AML_UART_CONTROL:     %08x\n", readl(mmio + AML_UART_CONTROL));
-printf("    AML_UART_STATUS:      %08x\n", readl(mmio + AML_UART_STATUS));
-printf("    AML_UART_IRQ_CONTROL: %08x\n", readl(mmio + AML_UART_IRQ_CONTROL));
-printf("    AML_UART_REG5:        %08x\n", readl(mmio + AML_UART_REG5));
+printf("    AML_UART_CONTROL: %08x\n", readl(mmio + AML_UART_CONTROL));
+printf("    AML_UART_STATUS:  %08x\n", readl(mmio + AML_UART_STATUS));
+printf("    AML_UART_MISC:    %08x\n", readl(mmio + AML_UART_MISC));
+printf("    AML_UART_REG5:    %08x\n", readl(mmio + AML_UART_REG5));
+*/
 
     while (1) {
         uint64_t slots;
@@ -117,7 +118,6 @@ printf("    AML_UART_REG5:        %08x\n", readl(mmio + AML_UART_REG5));
             break;
         }
 
-printf("IRQ port: %u\n", port->port_num);
         aml_uart_read_state(port);
     }
 
@@ -125,6 +125,8 @@ printf("IRQ port: %u\n", port->port_num);
     temp = readl(ctrl_reg);
     temp &= ~(AML_UART_CONTROL_TXEN | AML_UART_CONTROL_RXEN);
     writel(temp, ctrl_reg);
+
+// FIXME - assert AML_UART_CONTROL_INVRTS too?
 
     zxlogf(INFO, "aml_uart_irq_thread done\n");
 
@@ -137,8 +139,6 @@ static uint32_t aml_serial_get_port_count(void* ctx) {
 }
 
 static zx_status_t aml_serial_config(void* ctx, uint32_t port_num, uint32_t baud_rate, uint32_t flags) {
-printf("aml_serial_config port %u: %08x\n", port_num, flags);
-
     aml_uart_t* uart = ctx;
     if (port_num >= uart->port_count) {
         return ZX_ERR_INVALID_ARGS;
@@ -201,7 +201,6 @@ printf("aml_serial_config port %u: %08x\n", port_num, flags);
         ctrl_bits |= AML_UART_CONTROL_TWOWIRE;
     case SERIAL_FLOW_CTRL_CTS_RTS:
         // CTS/RTS is on by default
-//        ctrl_bits |= AML_UART_CONTROL_INVRTS;
         break;
     default:
         return ZX_ERR_INVALID_ARGS;
@@ -213,17 +212,13 @@ printf("aml_serial_config port %u: %08x\n", port_num, flags);
         return ZX_ERR_OUT_OF_RANGE;
     }
 
-printf("aml_serial_config port %u: flags %08x ctrl %08x\n", port_num, flags, ctrl_bits);
-
     mtx_lock(&port->lock);
 
     uint32_t temp = readl(ctrl_reg);
-printf("initial ctrl reg: %08x\n", temp);
     temp = 0x120;
     temp &= ~config_mask;
     temp |= ctrl_bits;
     writel(temp, ctrl_reg);
-printf("now ctrl reg: %08x\n", temp);
 //    writel(ctrl_bits, ctrl_reg);
 
     temp = baud_bits | AML_UART_REG5_USE_XTAL_CLK | AML_UART_REG5_USE_NEW_BAUD_RATE;
@@ -294,10 +289,8 @@ static zx_status_t aml_serial_read(void* ctx, uint32_t port_num, void* buf, size
 
     size_t read = (void *)bufptr - buf;
     if (read == 0) {
-printf("aml_serial_read port %u ZX_ERR_SHOULD_WAIT\n", port_num);
         return ZX_ERR_SHOULD_WAIT;
     }
-printf("aml_serial_read port %u got %zu\n", port_num, read);
     *out_actual = read;
     return ZX_OK;
 }
@@ -318,7 +311,6 @@ printf("\n");
     aml_uart_port_t* port = &uart->ports[port_num];
     void* mmio = port->mmio.vaddr;
     volatile uint32_t* wfifo_reg = mmio + AML_UART_WFIFO;
-printf("aml_serial_write status %08x\n", readl(mmio + AML_UART_STATUS));
 
     const uint8_t* bufptr = buf;
     const uint8_t* end = bufptr + length;

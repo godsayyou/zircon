@@ -8,7 +8,7 @@
 #define AML_UART_RFIFO                  (0x4)
 #define AML_UART_CONTROL                (0x8)
 #define AML_UART_STATUS                 (0xc)
-#define AML_UART_IRQ_CONTROL            (0x10)
+#define AML_UART_MISC                   (0x10)
 #define AML_UART_REG5                   (0x14)
 
 #define AML_UART_CONTROL_INVRTS         (1 << 31)

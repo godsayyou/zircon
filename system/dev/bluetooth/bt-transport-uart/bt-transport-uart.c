@@ -551,7 +551,7 @@ static zx_status_t hci_bind(void* ctx, zx_device_t* parent) {
     // Copy the PID and VID from the platform device info so it can be filtered on
     // for HCI drivers
     zx_device_prop_t props[] = {
-      { BIND_PROTOCOL, 0, ZX_PROTOCOL_BT_HCI_TRANSPORT },
+      { BIND_PROTOCOL, 0, ZX_PROTOCOL_BT_TRANSPORT },
       { BIND_PLATFORM_DEV_VID, 0, info.vid },
       { BIND_PLATFORM_DEV_PID, 0, info.pid },
     };
@@ -561,7 +561,7 @@ static zx_status_t hci_bind(void* ctx, zx_device_t* parent) {
         .name = "bt-transport-uart",
         .ctx = hci,
         .ops = &hci_device_proto,
-        .proto_id = ZX_PROTOCOL_BT_HCI_TRANSPORT,
+        .proto_id = ZX_PROTOCOL_BT_TRANSPORT,
         .props = props,
         .prop_count = countof(props),
     };

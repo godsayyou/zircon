@@ -180,7 +180,6 @@ zx_status_t platform_serial_config(platform_bus_t* bus, uint32_t port_num, uint3
         return ZX_ERR_NOT_FOUND;
     }
 
-// locking? flushing?
     return serial_driver_config(&bus->serial, port_num, baud_rate, flags);
 }
 
@@ -235,4 +234,12 @@ fail:
 
     mtx_unlock(&port->lock);
     return status;
+}
+
+zx_status_t platform_serial_flush(platform_bus_t* bus, uint32_t port_num) {
+    if (port_num >= bus->serial_port_count) {
+        return ZX_ERR_NOT_FOUND;
+    }
+
+    return serial_driver_flush(&bus->serial, port_num);
 }

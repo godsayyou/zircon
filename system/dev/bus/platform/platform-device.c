@@ -401,6 +401,15 @@ static zx_status_t pdev_rpc_serial_open_socket(platform_dev_t* dev, uint32_t ind
     return status;
 }
 
+static zx_status_t pdev_rpc_serial_flush(platform_dev_t* dev, uint32_t index) {
+    if (index >= dev->uart_count) {
+        return ZX_ERR_INVALID_ARGS;
+    }
+    pbus_uart_t* uart = &dev->uarts[index];
+
+    return platform_serial_flush(dev->bus, uart->port);
+}
+
 static zx_status_t platform_dev_rxrpc(void* ctx, zx_handle_t channel) {
     if (channel == ZX_HANDLE_INVALID) {
         // proxy device has connected
@@ -483,6 +492,9 @@ static zx_status_t platform_dev_rxrpc(void* ctx, zx_handle_t channel) {
         break;
     case PDEV_SERIAL_OPEN_SOCKET:
         resp.status = pdev_rpc_serial_open_socket(dev, req->index, &handle, &handle_count);
+        break;
+    case PDEV_SERIAL_FLUSH:
+        resp.status = pdev_rpc_serial_flush(dev, req->index);
         break;
     default:
         zxlogf(ERROR, "platform_dev_rxrpc: unknown op %u\n", req->op);

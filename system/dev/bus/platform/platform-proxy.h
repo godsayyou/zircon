@@ -40,6 +40,7 @@ enum {
     // ZX_PROTOCOL_SERIAL
     PDEV_SERIAL_CONFIG,
     PDEV_SERIAL_OPEN_SOCKET,
+    PDEV_SERIAL_FLUSH,
 };
 
 // context for i2c_transact

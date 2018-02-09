@@ -326,6 +326,16 @@ printf("\n");
     return ZX_OK;
 }
 
+static zx_status_t aml_serial_flush(void* ctx, uint32_t port_num) {
+    aml_uart_t* uart = ctx;
+    if (port_num >= uart->port_count) {
+        return ZX_ERR_INVALID_ARGS;
+    }
+//TODO implement this
+
+    return ZX_OK;
+}
+
 static zx_status_t aml_serial_set_notify_callback(void* ctx, uint32_t port_num, serial_state_cb cb,
                                                   void* cookie) {
     aml_uart_t* uart = ctx;
@@ -349,6 +359,7 @@ static serial_driver_ops_t aml_serial_ops = {
     .enable = aml_serial_enable,
     .read = aml_serial_read,
     .write = aml_serial_write,
+    .flush = aml_serial_flush,
     .set_notify_callback = aml_serial_set_notify_callback,
 };
 

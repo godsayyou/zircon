@@ -38,6 +38,7 @@ enum {
 typedef struct {
     zx_status_t (*config)(void* ctx, uint32_t port_num, uint32_t baud_rate, uint32_t flags);
     zx_status_t (*open_socket)(void* ctx, uint32_t port_num, zx_handle_t* out_handle);
+    zx_status_t (*flush)(void* ctx, uint32_t port_num);
 } serial_protocol_ops_t;
 
 typedef struct {
@@ -56,6 +57,11 @@ static inline zx_status_t serial_config(serial_protocol_t* serial, uint32_t port
 static inline zx_status_t serial_open_socket(serial_protocol_t* serial, uint32_t port_num,
                                              zx_handle_t* out_handle) {
     return serial->ops->open_socket(serial->ctx, port_num, out_handle);
+}
+
+// blocks until all data written to the socket has been transmitted
+static inline zx_status_t serial_flush(serial_protocol_t* serial, uint32_t port_num) {
+    return serial->ops->flush(serial->ctx, port_num);
 }
 
 // Low level serial protocol to be implemented by serial drivers
@@ -77,6 +83,7 @@ typedef struct {
     zx_status_t (*read)(void* ctx, uint32_t port_num, void* buf, size_t length, size_t* out_actual);
     zx_status_t (*write)(void* ctx, uint32_t port_num, const void* buf, size_t length,
                          size_t* out_actual);
+    zx_status_t (*flush)(void* ctx, uint32_t port_num);
     zx_status_t (*set_notify_callback)(void* ctx, uint32_t port_num, serial_state_cb cb,
                                        void* cookie);
 } serial_driver_ops_t;
@@ -114,6 +121,11 @@ static inline zx_status_t serial_driver_read(serial_driver_protocol_t* serial, u
 static inline zx_status_t serial_driver_write(serial_driver_protocol_t* serial, uint32_t port_num,
                                               const void* buf, size_t length, size_t* out_actual) {
     return serial->ops->write(serial->ctx, port_num, buf, length, out_actual);
+}
+
+// blocks until all data written to the socket has been transmitted
+static inline zx_status_t serial_driver_flush(serial_driver_protocol_t* serial, uint32_t port_num) {
+    return serial->ops->flush(serial->ctx, port_num);
 }
 
 // sets a callback to be called when the port's readable and writeble state changes

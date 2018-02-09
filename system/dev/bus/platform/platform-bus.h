@@ -90,5 +90,6 @@ void platform_serial_release(platform_bus_t* bus);
 zx_status_t platform_serial_config(platform_bus_t* bus, uint32_t port, uint32_t baud_rate,
                                    uint32_t flags);
 zx_status_t platform_serial_open_socket(platform_bus_t* bus, uint32_t port, zx_handle_t* out_handle);
+zx_status_t platform_serial_flush(platform_bus_t* bus, uint32_t port);
                               
                              

@@ -322,6 +322,7 @@ static zx_status_t pdev_serial_config(void* ctx, uint32_t port, uint32_t baud_ra
 
     return platform_dev_rpc(proxy, &req, sizeof(req), &resp, sizeof(resp), NULL, 0, NULL);
 }
+
 static zx_status_t pdev_serial_open_socket(void* ctx, uint32_t port, zx_handle_t* out_handle) {
     platform_proxy_t* proxy = ctx;
     pdev_req_t req = {
@@ -333,9 +334,21 @@ static zx_status_t pdev_serial_open_socket(void* ctx, uint32_t port, zx_handle_t
     return platform_dev_rpc(proxy, &req, sizeof(req), &resp, sizeof(resp), out_handle, 1, NULL);
 }
 
+static zx_status_t pdev_serial_flush(void* ctx, uint32_t port) {
+    platform_proxy_t* proxy = ctx;
+    pdev_req_t req = {
+        .op = PDEV_SERIAL_FLUSH,
+        .index = port,
+    };
+    pdev_resp_t resp;
+
+    return platform_dev_rpc(proxy, &req, sizeof(req), &resp, sizeof(resp), NULL, 0, NULL);
+}
+
 static serial_protocol_ops_t serial_ops = {
     .config = pdev_serial_config,
     .open_socket = pdev_serial_open_socket,
+    .flush = pdev_serial_flush,
 };
 
 static zx_status_t platform_dev_map_mmio(void* ctx, uint32_t index, uint32_t cache_policy,
